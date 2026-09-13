@@ -1,11 +1,11 @@
 [
   {
     "step": 1,
-    "query": "Chào bạn, bạn có thể giới thiệu quy chế học vụ cơ bản của Đại học VinUni không?",
+    "query": "Chào bạn, chương trình Cử nhân Trí tuệ Nhân tạo tại VinUni yêu cầu tích lũy tối thiểu bao nhiêu tín chỉ để tốt nghiệp?",
     "action_type": "FINAL_ANSWER",
-    "thought": "Câu hỏi chung về quy chế học vụ, trả lời trực tiếp không cần gọi Tool.",
-    "output": "[Mock Agent Response]: Xin chào! Quy chế học vụ VinUni yêu cầu sinh viên tích lũy tối thiểu 120 tín chỉ và duy trì GPA trên 2.0 để tốt nghiệp.",
-    "latency_ms": 2845.93
+    "thought": "OpenAI phản hồi trực tiếp bằng văn bản (không cần gọi công cụ).",
+    "output": "Chương trình Cử nhân Trí tuệ Nhân tạo tại VinUni yêu cầu sinh viên phải tích lũy tối thiểu 128 tín chỉ để tốt nghiệp.",
+    "latency_ms": 5723.31
   },
   {
     "step": 1,
@@ -15,15 +15,261 @@
     "arguments": {
       "student_id": "SV2026001"
     },
-    "observation": {},
-    "latency_ms": 799.12
+    "observation": {
+      "status": "SUCCESS",
+      "student_id": "SV2026001",
+      "data": {
+        "full_name": "Nguyễn Văn An",
+        "class": "AI-K4",
+        "program": "AI",
+        "gpa": 3.85,
+        "credits_earned": 118,
+        "email": "an.nv@vinuni.edu.vn",
+        "status": "Đang học",
+        "advisor": "PGS.TS Nguyễn Văn A",
+        "completed_courses": [
+          "CSI101",
+          "CSI201",
+          "MTH201",
+          "AIC201",
+          "AIC301"
+        ],
+        "exam_schedule": [
+          {
+            "course": "AIC401 - Xử lý ngôn ngữ tự nhiên",
+            "date": "20/09/2026",
+            "time": "09:00",
+            "room": "A101"
+          },
+          {
+            "course": "AIC501 - Các kĩ thuật học sâu và ứng dụng",
+            "date": "22/09/2026",
+            "time": "14:00",
+            "room": "B202"
+          }
+        ]
+      }
+    },
+    "latency_ms": 4678.47
   },
   {
     "step": 2,
     "query": "Hãy tra cứu thông tin học vụ của sinh viên SV2026001.",
     "action_type": "FINAL_ANSWER",
-    "thought": "Tổng hợp kết quả từ MCP Server thành công.",
-    "output": "Chưa thể trả lời chi tiết do chưa nhận được dữ liệu từ MCP Server (hãy hoàn thành TODO 2.1).",
-    "latency_ms": 10.0
+    "thought": "OpenAI phản hồi trực tiếp bằng văn bản (không cần gọi công cụ).",
+    "output": "Thông tin học vụ của sinh viên SV2026001 - Nguyễn Văn An như sau:\n\n- **Lớp:** AI-K4\n- **Chương trình:** Trí tuệ Nhân tạo (AI)\n- **GPA:** 3.85\n- **Số tín chỉ đã tích lũy:** 118 tín chỉ\n- **Trạng thái:** Đang học\n- **Cố vấn học tập:** PGS.TS Nguyễn Văn A\n- **Môn đã học:** CSI101, CSI201, MTH201, AIC201, AIC301\n- **Lịch thi:**\n  - **Môn:** AIC401 - Xử lý ngôn ngữ tự nhiên\n    - **Ngày:** 20/09/2026\n    - **Thời gian:** 09:00\n    - **Phòng:** A101\n  - **Môn:** AIC501 - Các kĩ thuật học sâu và ứng dụng\n    - **Ngày:** 22/09/2026\n    - **Thời gian:** 14:00\n    - **Phòng:** B202",
+    "latency_ms": 3771.1
+  },
+  {
+    "step": 1,
+    "query": "Đặt lịch tư vấn giúp mình với cố vấn PGS.TS Nguyễn Văn A vào lúc 14:00 ngày 15/09/2026. Mã sinh viên của mình là SV2026001.",
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "schedule_appointment",
+    "arguments": {
+      "student_id": "SV2026001",
+      "advisor_name": "PGS.TS Nguyễn Văn A",
+      "datetime_str": "14:00 15/09/2026"
+    },
+    "observation": {
+      "status": "SUCCESS",
+      "booking_id": "BK-1001",
+      "student_id": "SV2026001",
+      "student_name": "Nguyễn Văn An",
+      "advisor": "PGS.TS Nguyễn Văn A",
+      "datetime": "14:00 15/09/2026",
+      "reason": "",
+      "message": "Đặt lịch thành công cho sinh viên Nguyễn Văn An (SV2026001) với PGS.TS Nguyễn Văn A vào lúc 14:00 15/09/2026."
+    },
+    "latency_ms": 3502.75
+  },
+  {
+    "step": 2,
+    "query": "Đặt lịch tư vấn giúp mình với cố vấn PGS.TS Nguyễn Văn A vào lúc 14:00 ngày 15/09/2026. Mã sinh viên của mình là SV2026001.",
+    "action_type": "FINAL_ANSWER",
+    "thought": "OpenAI phản hồi trực tiếp bằng văn bản (không cần gọi công cụ).",
+    "output": "Mình đã đặt lịch thành công cho bạn với cố vấn PGS.TS Nguyễn Văn A vào lúc 14:00 ngày 15/09/2026. \n\nMã đặt lịch là: BK-1001. Nếu bạn cần thêm thông tin nào khác, hãy cho mình biết nhé!",
+    "latency_ms": 3508.64
+  },
+  {
+    "step": 1,
+    "query": "SV2026001 hiện đã tích lũy được bao nhiêu tín chỉ và GPA bao nhiêu? Bạn kiểm tra giúp bạn ấy đã đủ điều kiện tốt nghiệp chưa?",
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "academic_query",
+    "arguments": {
+      "student_id": "SV2026001"
+    },
+    "observation": {
+      "status": "SUCCESS",
+      "student_id": "SV2026001",
+      "data": {
+        "full_name": "Nguyễn Văn An",
+        "class": "AI-K4",
+        "program": "AI",
+        "gpa": 3.85,
+        "credits_earned": 118,
+        "email": "an.nv@vinuni.edu.vn",
+        "status": "Đang học",
+        "advisor": "PGS.TS Nguyễn Văn A",
+        "completed_courses": [
+          "CSI101",
+          "CSI201",
+          "MTH201",
+          "AIC201",
+          "AIC301"
+        ],
+        "exam_schedule": [
+          {
+            "course": "AIC401 - Xử lý ngôn ngữ tự nhiên",
+            "date": "20/09/2026",
+            "time": "09:00",
+            "room": "A101"
+          },
+          {
+            "course": "AIC501 - Các kĩ thuật học sâu và ứng dụng",
+            "date": "22/09/2026",
+            "time": "14:00",
+            "room": "B202"
+          }
+        ]
+      }
+    },
+    "latency_ms": 1878.73
+  },
+  {
+    "step": 2,
+    "query": "SV2026001 hiện đã tích lũy được bao nhiêu tín chỉ và GPA bao nhiêu? Bạn kiểm tra giúp bạn ấy đã đủ điều kiện tốt nghiệp chưa?",
+    "action_type": "FINAL_ANSWER",
+    "thought": "OpenAI phản hồi trực tiếp bằng văn bản (không cần gọi công cụ).",
+    "output": "Sinh viên có mã số SV2026001 hiện đã tích lũy được 118 tín chỉ và có GPA là 3.85.\n\nĐể đủ điều kiện tốt nghiệp, sinh viên cần có tối thiểu 128 tín chỉ và GPA ≥ 2.0. \n\nVới 118 tín chỉ đã tích lũy, sinh viên này vẫn chưa đủ điều kiện tốt nghiệp.",
+    "latency_ms": 3102.41
+  },
+  {
+    "step": 1,
+    "query": "Cho mình hỏi GPA của bạn SV9999999 và nếu bạn ấy có cố vấn thì đặt lịch tư vấn giúp bạn ấy vào 10:00 ngày 18/09/2026.",
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "academic_query",
+    "arguments": {
+      "student_id": "SV9999999"
+    },
+    "observation": {
+      "status": "NOT_FOUND",
+      "message": "Không tìm thấy dữ liệu sinh viên có mã 'SV9999999'"
+    },
+    "latency_ms": 1464.02
+  },
+  {
+    "step": 2,
+    "query": "Cho mình hỏi GPA của bạn SV9999999 và nếu bạn ấy có cố vấn thì đặt lịch tư vấn giúp bạn ấy vào 10:00 ngày 18/09/2026.",
+    "action_type": "FINAL_ANSWER",
+    "thought": "OpenAI phản hồi trực tiếp bằng văn bản (không cần gọi công cụ).",
+    "output": "Mã sinh viên \"SV9999999\" không có dữ liệu trong hệ thống, có thể do mã này không hợp lệ hoặc chưa được đăng ký. Vui lòng cung cấp mã sinh viên đúng để mình có thể tra cứu GPA và thông tin cố vấn, cũng như thực hiện việc đặt lịch tư vấn.",
+    "latency_ms": 1573.25
+  },
+  {
+    "step": 1,
+    "query": "Mình đã học xong môn 'Máy học' và 'Nhập môn lập trình'. Mình có thể đăng ký học môn 'Các kĩ thuật học sâu và ứng dụng' không?",
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "course_catalog_query",
+    "arguments": {
+      "course_name": "Các kĩ thuật học sâu và ứng dụng"
+    },
+    "observation": {
+      "status": "SUCCESS",
+      "course_code": "AIC501",
+      "data": {
+        "name": "Các kĩ thuật học sâu và ứng dụng",
+        "credits": 3,
+        "prereq": [
+          "AIC301"
+        ],
+        "is_open": true,
+        "summary": "Deep Learning, CNN, ứng dụng nhận dạng và phát hiện đối tượng."
+      }
+    },
+    "latency_ms": 1479.07
+  },
+  {
+    "step": 2,
+    "query": "Mình đã học xong môn 'Máy học' và 'Nhập môn lập trình'. Mình có thể đăng ký học môn 'Các kĩ thuật học sâu và ứng dụng' không?",
+    "action_type": "FINAL_ANSWER",
+    "thought": "OpenAI phản hồi trực tiếp bằng văn bản (không cần gọi công cụ).",
+    "output": "Môn \"Các kĩ thuật học sâu và ứng dụng\" (AIC501) có môn tiên quyết là \"AIC301\". Để có thể đăng ký học, bạn cần hoàn thành môn \"AIC301\" trước.\n\nVì bạn đã học xong \"Máy học\" và \"Nhập môn lập trình\", nhưng chưa xác nhận thông tin về môn \"AIC301\", nên bạn không thể đăng ký môn \"Các kĩ thuật học sâu và ứng dụng\" nếu chưa hoàn thành môn tiên quyết này.\n\nBạn có thể kiểm tra kỹ lưỡng lại hồ sơ học tập của mình xem có môn \"AIC301\" đã hoàn thành hay chưa. Nếu cần hỗ trợ thêm, hãy cho tôi biết!",
+    "latency_ms": 4387.46
+  },
+  {
+    "step": 1,
+    "query": "Mình là SV2026001. Mình nghe nói môn 'Trí tuệ nhân tạo' chỉ có 3 tín chỉ và không cần học môn nào trước. Mình muốn đăng ký học môn này vào học kỳ tới. Bạn kiểm tra giúp mình có đủ điều kiện không?",
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "academic_query",
+    "arguments": {
+      "student_id": "SV2026001"
+    },
+    "observation": {
+      "status": "SUCCESS",
+      "student_id": "SV2026001",
+      "data": {
+        "full_name": "Nguyễn Văn An",
+        "class": "AI-K4",
+        "program": "AI",
+        "gpa": 3.85,
+        "credits_earned": 118,
+        "email": "an.nv@vinuni.edu.vn",
+        "status": "Đang học",
+        "advisor": "PGS.TS Nguyễn Văn A",
+        "completed_courses": [
+          "CSI101",
+          "CSI201",
+          "MTH201",
+          "AIC201",
+          "AIC301"
+        ],
+        "exam_schedule": [
+          {
+            "course": "AIC401 - Xử lý ngôn ngữ tự nhiên",
+            "date": "20/09/2026",
+            "time": "09:00",
+            "room": "A101"
+          },
+          {
+            "course": "AIC501 - Các kĩ thuật học sâu và ứng dụng",
+            "date": "22/09/2026",
+            "time": "14:00",
+            "room": "B202"
+          }
+        ]
+      }
+    },
+    "latency_ms": 3638.2
+  },
+  {
+    "step": 2,
+    "query": "Mình là SV2026001. Mình nghe nói môn 'Trí tuệ nhân tạo' chỉ có 3 tín chỉ và không cần học môn nào trước. Mình muốn đăng ký học môn này vào học kỳ tới. Bạn kiểm tra giúp mình có đủ điều kiện không?",
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "course_catalog_query",
+    "arguments": {
+      "course_name": "Trí tuệ nhân tạo"
+    },
+    "observation": {
+      "status": "SUCCESS",
+      "course_code": "AIC201",
+      "data": {
+        "name": "Trí tuệ nhân tạo",
+        "credits": 4,
+        "prereq": [
+          "CSI201"
+        ],
+        "is_open": true,
+        "summary": "Lịch sử AI, thuật giải heuristic, tìm kiếm, biểu diễn tri thức."
+      }
+    },
+    "latency_ms": 1008.8
+  },
+  {
+    "step": 3,
+    "query": "Mình là SV2026001. Mình nghe nói môn 'Trí tuệ nhân tạo' chỉ có 3 tín chỉ và không cần học môn nào trước. Mình muốn đăng ký học môn này vào học kỳ tới. Bạn kiểm tra giúp mình có đủ điều kiện không?",
+    "action_type": "FINAL_ANSWER",
+    "thought": "OpenAI phản hồi trực tiếp bằng văn bản (không cần gọi công cụ).",
+    "output": "Bạn đang học chương trình Cử nhân Trí tuệ Nhân tạo (AI) và yêu cầu để đăng ký môn học 'Trí tuệ nhân tạo' như sau:\n\n1. **Thông tin môn 'Trí tuệ nhân tạo'**:\n   - Tín chỉ: 4 tín chỉ\n   - Môn tiên quyết: 'CSI201'\n\n2. **Hồ sơ của bạn (SV2026001)**:\n   - Các môn đã hoàn thành: ['CSI101', 'CSI201', 'MTH201', 'AIC201', 'AIC301']\n   - GPA: 3.85\n   - Tín chỉ đã tích lũy: 118 tín chỉ\n\n**Đánh giá điều kiện đăng ký**:\n- Bạn đã hoàn thành môn tiên quyết 'CSI201', vì vậy bạn đủ điều kiện để đăng ký môn 'Trí tuệ nhân tạo' (4 tín chỉ).\n\nBạn có thể tiếp tục làm đơn đăng ký môn học. Nếu cần thêm hỗ trợ hoặc muốn đặt lịch tư vấn, hãy cho tôi biết!",
+    "latency_ms": 3378.89
   }
 ]

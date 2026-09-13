@@ -22,7 +22,7 @@ class BaseLLMProvider:
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         raise NotImplementedError
 
-    def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "") -> Dict[str, Any]:
+    def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "", chat_history: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         raise NotImplementedError
 
 
@@ -32,30 +32,37 @@ class MockOfflineProvider(BaseLLMProvider):
         self.model_name = "Offline-Mock-Model-2026"
 
     def generate(self, prompt: str, system_prompt: str = "") -> str:
-        return f"[Mock Chatbot Response]: Xin chào! Tôi đã nhận được câu hỏi '{prompt}'. (Chế độ Chatbot không có Tool tra cứu dữ liệu thời gian thực)."
+        return f"[Mock Chatbot Response]: Xin chào! Tôi đã nhận được câu hỏi '{prompt}'. (Chế độ Chatbot không có Tool tra cứy dữ liệu thời gian thực)."
 
-    def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "") -> Dict[str, Any]:
+    def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "", chat_history: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         prompt_lower = prompt.lower()
+        combined = prompt_lower + " " + " ".join(h.get("content", "") for h in (chat_history or []))
         
-        # Mô phỏng nhận diện intent gọi Tool
-        if "sv2026001" in prompt_lower and "đặt lịch" in prompt_lower:
+        if "sv2026001" in combined and "đặt lịch" in combined:
             return {
                 "type": "tool_call",
                 "tool_name": "schedule_appointment",
                 "arguments": {"student_id": "SV2026001", "datetime_str": "14:00 15/09/2026", "advisor_name": "PGS.TS Nguyễn Văn A"},
                 "thought": "Người dùng yêu cầu đặt lịch hẹn tư vấn cho sinh viên SV2026001. Tôi sẽ gọi tool schedule_appointment."
             }
-        elif "sv2026001" in prompt_lower or "tra cứu" in prompt_lower:
+        elif "sv2026001" in combined or "tra cứu" in combined:
             return {
                 "type": "tool_call",
                 "tool_name": "academic_query",
                 "arguments": {"student_id": "SV2026001"},
                 "thought": "Người dùng muốn tra cứu thông tin học vụ của sinh viên SV2026001. Tôi sẽ gọi tool academic_query."
             }
+        elif "trí tuệ nhân tạo" in combined or "machine learning" in combined:
+            return {
+                "type": "tool_call",
+                "tool_name": "course_catalog_query",
+                "arguments": {"course_name": "Trí tuệ nhân tạo"},
+                "thought": "Người dùng muốn tra cứu thông tin môn học. Tôi sẽ gọi tool course_catalog_query."
+            }
         else:
             return {
                 "type": "text",
-                "content": f"[Mock Agent Response]: Xin chào! Quy chế học vụ VinUni yêu cầu sinh viên tích lũy tối thiểu 120 tín chỉ và duy trì GPA trên 2.0 để tốt nghiệp.",
+                "content": "[Mock Agent Response]: Xin chào! Quy chế học vụ VinUni yêu cầu sinh viên tích lũy tối thiểu 128 tín chỉ và duy trì GPA trên 2.0 để tốt nghiệp.",
                 "thought": "Câu hỏi chung về quy chế học vụ, trả lời trực tiếp không cần gọi Tool."
             }
 
@@ -78,10 +85,10 @@ class GeminiProvider(BaseLLMProvider):
         except Exception as e:
             return f"[Gemini Exception]: {str(e)}"
 
-    def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "") -> Dict[str, Any]:
+    def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "", chat_history: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         if not self.api_key or self.api_key == "your_gemini_api_key_here":
             print("ℹ️ [Gemini Provider]: Chưa tìm thấy GEMINI_API_KEY hợp lệ. Tự động chuyển sang Mock Offline.")
-            return MockOfflineProvider().generate_with_tools(prompt, tools_schema, system_prompt)
+            return MockOfflineProvider().generate_with_tools(prompt, tools_schema, system_prompt, chat_history)
         
         try:
             from google import genai
@@ -107,9 +114,42 @@ class GeminiProvider(BaseLLMProvider):
                 temperature=0.2
             )
 
+            # Multi-turn: build contents list from chat_history
+            contents = []
+            if chat_history:
+                for msg in chat_history:
+                    role = msg.get("role", "user")
+                    content = msg.get("content", "")
+                    if role == "assistant" and msg.get("tool_name"):
+                        contents.append(types.Content(
+                            role="model",
+                            parts=[types.Part(text=msg.get("thought", "")),
+                                   types.Part(function_call=types.FunctionCall(
+                                       name=msg.get("tool_name"),
+                                       args=msg.get("arguments", {})
+                                   ))]
+                        ))
+                    elif role == "user":
+                        if msg.get("tool_result"):
+                            contents.append(types.Content(
+                                role="user",
+                                parts=[types.Part(text=msg.get("content", "")),
+                                       types.Part(function_response=types.FunctionResponse(
+                                           name=msg.get("tool_name", ""),
+                                           response={"result": msg.get("observation", {})}
+                                       ))]
+                            ))
+                        else:
+                            contents.append(types.Content(role="user", parts=[types.Part(text=content)]))
+                    else:
+                        contents.append(types.Content(role="model", parts=[types.Part(text=content)]))
+            
+            # Add current user prompt as the last message
+            contents.append(types.Content(role="user", parts=[types.Part(text=prompt)]))
+
             response = client.models.generate_content(
                 model=self.model_name,
-                contents=prompt,
+                contents=contents,
                 config=config
             )
 
@@ -132,7 +172,7 @@ class GeminiProvider(BaseLLMProvider):
 
         except Exception as e:
             print(f"⚠️ [Gemini API Warning]: Không thể kết nối live API ({str(e)}). Tự động fallback về Mock.")
-            return MockOfflineProvider().generate_with_tools(prompt, tools_schema, system_prompt)
+            return MockOfflineProvider().generate_with_tools(prompt, tools_schema, system_prompt, chat_history)
 
 
 class OpenAIProvider(BaseLLMProvider):
@@ -156,10 +196,10 @@ class OpenAIProvider(BaseLLMProvider):
         except Exception as e:
             return f"[OpenAI Exception]: {str(e)}"
 
-    def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "") -> Dict[str, Any]:
+    def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "", chat_history: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         if not self.api_key or self.api_key == "your_openai_api_key_here":
             print("ℹ️ [OpenAI Provider]: Chưa tìm thấy OPENAI_API_KEY hợp lệ. Tự động chuyển sang Mock Offline.")
-            return MockOfflineProvider().generate_with_tools(prompt, tools_schema, system_prompt)
+            return MockOfflineProvider().generate_with_tools(prompt, tools_schema, system_prompt, chat_history)
 
         try:
             from openai import OpenAI
@@ -181,6 +221,31 @@ class OpenAIProvider(BaseLLMProvider):
             messages = []
             if system_prompt:
                 messages.append({"role": "system", "content": system_prompt})
+
+            if chat_history:
+                for msg in chat_history:
+                    role = msg.get("role")
+                    if role == "user":
+                        messages.append({"role": "user", "content": msg.get("content", "")})
+                    elif role == "assistant":
+                        assistant_msg = {"role": "assistant", "content": msg.get("thought", "")}
+                        if msg.get("tool_name"):
+                            assistant_msg["tool_calls"] = [{
+                                "id": msg.get("tool_call_id", f"call_{msg.get('tool_name')}_{id(msg)}"),
+                                "type": "function",
+                                "function": {
+                                    "name": msg.get("tool_name"),
+                                    "arguments": json.dumps(msg.get("arguments", {}), ensure_ascii=False)
+                                }
+                            }]
+                        messages.append(assistant_msg)
+                    elif role == "tool":
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": msg.get("tool_call_id", ""),
+                            "content": msg.get("content", "")
+                        })
+
             messages.append({"role": "user", "content": prompt})
 
             response = client.chat.completions.create(
@@ -198,7 +263,8 @@ class OpenAIProvider(BaseLLMProvider):
                     "type": "tool_call",
                     "tool_name": call.function.name,
                     "arguments": args,
-                    "thought": f"OpenAI quyết định gọi công cụ '{call.function.name}' với tham số: {json.dumps(args, ensure_ascii=False)}"
+                    "thought": f"OpenAI quyết định gọi công cụ '{call.function.name}' với tham số: {json.dumps(args, ensure_ascii=False)}",
+                    "tool_call_id": call.id
                 }
             else:
                 return {
@@ -208,7 +274,7 @@ class OpenAIProvider(BaseLLMProvider):
                 }
         except Exception as e:
             print(f"⚠️ [OpenAI API Warning]: Không thể kết nối live API ({str(e)}). Tự động fallback về Mock.")
-            return MockOfflineProvider().generate_with_tools(prompt, tools_schema, system_prompt)
+            return MockOfflineProvider().generate_with_tools(prompt, tools_schema, system_prompt, chat_history)
 
 
 def get_llm_provider() -> BaseLLMProvider:
