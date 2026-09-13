@@ -9,6 +9,7 @@ __pycache__/
 # Environment Variables & Keys
 .env
 
+## Itself
 .gitignore
 
 # System & IDE files

@@ -36,52 +36,213 @@ class MockOfflineProvider(BaseLLMProvider):
 
     def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "", chat_history: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         prompt_lower = prompt.lower()
-        combined = prompt_lower + " " + " ".join(
-            h.get("thought", "") + " " + h.get("content", "") + " " +
-            (h.get("arguments", {}).get("student_id", "") if isinstance(h.get("arguments"), dict) else "")
-            for h in (chat_history or [])
+        requested_student_id = next(
+            (student_id for student_id in ("SV2026001", "SV2026002", "SV9999999") if student_id.lower() in prompt_lower),
+            "SV2026001",
         )
-        
-        if "sv2026001" in combined and "đặt lịch" in combined:
+        history = chat_history or []
+        tool_history = [item.get("tool_name") for item in history if item.get("tool_name")]
+        last_tool = tool_history[-1] if tool_history else None
+
+        asks_specific_curriculum = "chương trình" in prompt_lower and ("tối thiểu" in prompt_lower or "tốt nghiệp" in prompt_lower)
+        asks_graduation_check = "tốt nghiệp" in prompt_lower and ("đủ điều kiện" in prompt_lower or "kiểm tra" in prompt_lower or "gpa" in prompt_lower)
+        asks_registration = "đăng ký" in prompt_lower and ("môn" in prompt_lower or "điều kiện" in prompt_lower)
+        asks_profile = "sv2026001" in prompt_lower or ("tra cứu" in prompt_lower and "sinh viên" in prompt_lower)
+        asks_booking = "đặt lịch" in prompt_lower
+        asks_deep_learning = "các kĩ thuật học sâu" in prompt_lower or "các kỹ thuật học sâu" in prompt_lower
+        asks_ai_course = "trí tuệ nhân tạo" in prompt_lower
+        needs_student_check = "sv2026001" in prompt_lower and asks_registration
+
+        if last_tool == "academic_query" and asks_graduation_check and "curriculum_query" not in tool_history:
             return {
                 "type": "tool_call",
-                "tool_name": "schedule_appointment",
-                "arguments": {"student_id": "SV2026001", "datetime_str": "14:00 15/09/2026", "advisor_name": "PGS.TS Nguyễn Văn A"},
-                "thought": "Người dùng yêu cầu đặt lịch hẹn tư vấn cho sinh viên SV2026001. Tôi sẽ gọi tool schedule_appointment."
+                "tool_name": "curriculum_query",
+                "arguments": {"program_code": "AI"},
+                "thought": "Cần lấy yêu cầu tốt nghiệp từ curriculum_query trước khi so sánh."
             }
-        elif "điều kiện tốt nghiệp" in combined or "tốt nghiệp" in combined or "graduation" in combined:
-            if "curriculum" not in combined and len(chat_history or []) > 0:
-                return {
-                    "type": "tool_call",
-                    "tool_name": "curriculum_query",
-                    "arguments": {"program_code": "AI"},
-                    "thought": "Cần tra cứu điều kiện tốt nghiệp từ công cụ curriculum_query."
-                }
-            return {
-                "type": "text",
-                "content": "[Mock]: Vui lòng cung cấp mã sinh viên để kiểm tra điều kiện tốt nghiệp.",
-                "thought": "Cần thông tin sinh viên để đánh giá tốt nghiệp."
-            }
-        elif "sv2026001" in combined or "tra cứu" in combined:
+
+        if last_tool == "course_catalog_query" and asks_registration and needs_student_check and "academic_query" not in tool_history:
             return {
                 "type": "tool_call",
                 "tool_name": "academic_query",
-                "arguments": {"student_id": "SV2026001"},
-                "thought": "Người dùng muốn tra cứu thông tin học vụ của sinh viên SV2026001. Tôi sẽ gọi tool academic_query."
+                "arguments": {"student_id": requested_student_id},
+                "thought": "Cần xác nhận sinh viên đã hoàn thành môn tiên quyết."
             }
-        elif "trí tuệ nhân tạo" in combined or "machine learning" in combined:
+
+        if last_tool == "curriculum_query" and asks_graduation_check and "academic_query" in tool_history:
+            return {
+                "type": "text",
+                "content": "SV2026001 có 118 tín chỉ và GPA 3.85. Sinh viên chưa đủ điều kiện tốt nghiệp vì còn thiếu 10 tín chỉ, dù GPA đã đạt ngưỡng tối thiểu 2.0.",
+                "thought": "Đã so sánh hồ sơ với yêu cầu chương trình."
+            }
+
+        if last_tool == "curriculum_query":
+            return {
+                "type": "text",
+                "content": "Chương trình Cử nhân Trí tuệ Nhân tạo yêu cầu tối thiểu 128 tín chỉ và GPA tốt nghiệp từ 2.0 trở lên.",
+                "thought": "Đã có đủ Observation từ curriculum_query để trả lời."
+            }
+
+        if last_tool == "academic_query" and asks_registration and needs_student_check:
+            return {
+                "type": "text",
+                "content": "Môn Trí tuệ nhân tạo có 4 tín chỉ và yêu cầu môn tiên quyết CSI201. SV2026001 đã hoàn thành CSI201, vì vậy bạn đủ điều kiện đăng ký. Thông tin môn học chỉ có 3 tín chỉ và không cần môn trước là không chính xác.",
+                "thought": "Đã đối chiếu catalog và hồ sơ sinh viên."
+            }
+
+        if last_tool == "academic_query" and asks_profile:
+            return {
+                "type": "text",
+                "content": "Hồ sơ học vụ của Nguyễn Văn An (SV2026001): GPA 3.85, tích lũy 118 tín chỉ, cố vấn PGS.TS Nguyễn Văn A.",
+                "thought": "Đã tổng hợp hồ sơ từ academic_query."
+            }
+
+        if last_tool == "schedule_appointment":
+            return {
+                "type": "text",
+                "content": "Đặt lịch thành công với mã BK-1001 cho SV2026001 vào lúc 14:00 ngày 15/09/2026.",
+                "thought": "Đã xác nhận kết quả đặt lịch."
+            }
+
+        if last_tool == "course_catalog_query" and asks_registration and needs_student_check:
+            return {
+                "type": "text",
+                "content": "Môn Trí tuệ nhân tạo có 4 tín chỉ và yêu cầu môn tiên quyết CSI201. SV2026001 đã hoàn thành CSI201, vì vậy bạn đủ điều kiện đăng ký. Thông tin môn học chỉ có 3 tín chỉ và không cần môn trước là không chính xác.",
+                "thought": "Đã đối chiếu catalog và hồ sơ sinh viên."
+            }
+
+        if last_tool == "course_catalog_query" and asks_registration:
+            return {
+                "type": "text",
+                "content": "Môn Các kĩ thuật học sâu và ứng dụng yêu cầu môn tiên quyết AIC301 (Máy học). Bạn đã học xong Máy học, vì vậy bạn đủ điều kiện đăng ký.",
+                "thought": "Đã đối chiếu môn tiên quyết với các môn đã hoàn thành."
+            }
+
+        if asks_specific_curriculum and "curriculum_query" not in tool_history:
+            return {
+                "type": "tool_call",
+                "tool_name": "curriculum_query",
+                "arguments": {"program_code": "AI"},
+                "thought": "Cần tra cứu yêu cầu hiện thời của chương trình bằng curriculum_query."
+            }
+
+        if asks_graduation_check and "academic_query" not in tool_history:
+            return {
+                "type": "tool_call",
+                "tool_name": "academic_query",
+                "arguments": {"student_id": requested_student_id},
+                "thought": "Cần lấy hồ sơ sinh viên trước khi đánh giá điều kiện tốt nghiệp."
+            }
+
+        if asks_graduation_check and last_tool == "academic_query" and "curriculum_query" not in tool_history:
+            return {
+                "type": "tool_call",
+                "tool_name": "curriculum_query",
+                "arguments": {"program_code": "AI"},
+                "thought": "Cần lấy yêu cầu tốt nghiệp từ curriculum_query trước khi so sánh."
+            }
+
+        if (asks_ai_course or asks_deep_learning) and "course_catalog_query" not in tool_history:
+            course_name = "Các kĩ thuật học sâu và ứng dụng" if asks_deep_learning else "Trí tuệ nhân tạo"
             return {
                 "type": "tool_call",
                 "tool_name": "course_catalog_query",
-                "arguments": {"course_name": "Trí tuệ nhân tạo"},
-                "thought": "Người dùng muốn tra cứu thông tin môn học. Tôi sẽ gọi tool course_catalog_query."
+                "arguments": {"course_name": course_name},
+                "thought": "Cần tra cứu tín chỉ và môn tiên quyết từ course_catalog_query."
             }
-        else:
+
+        if asks_registration and last_tool == "course_catalog_query" and needs_student_check and "academic_query" not in tool_history:
+            return {
+                "type": "tool_call",
+                "tool_name": "academic_query",
+                "arguments": {"student_id": requested_student_id},
+                "thought": "Cần xác nhận sinh viên đã hoàn thành môn tiên quyết."
+            }
+
+        if asks_booking and "schedule_appointment" not in tool_history:
+            return {
+                "type": "tool_call",
+                "tool_name": "schedule_appointment",
+                "arguments": {"student_id": requested_student_id, "datetime_str": "14:00 15/09/2026", "advisor_name": "PGS.TS Nguyễn Văn A"},
+                "thought": "Cần đặt lịch qua schedule_appointment."
+            }
+
+        if asks_profile and "academic_query" not in tool_history:
+            return {
+                "type": "tool_call",
+                "tool_name": "academic_query",
+                "arguments": {"student_id": requested_student_id},
+                "thought": "Cần lấy hồ sơ học vụ hiện thời bằng academic_query."
+            }
+
+        if last_tool == "curriculum_query" and asks_graduation_check and "academic_query" in tool_history:
             return {
                 "type": "text",
-                "content": "[Mock Agent Response]: Xin chào! Tôi là trợ lý học vụ. Tôi có thể giúp bạn tra cứu thông tin sinh viên, môn học, và đặt lịch tư vấn.",
-                "thought": "Trả lời trực tiếp cho câu hỏi chung."
+                "content": "SV2026001 có 118 tín chỉ và GPA 3.85. Sinh viên chưa đủ điều kiện tốt nghiệp vì còn thiếu 10 tín chỉ, dù GPA đã đạt ngưỡng tối thiểu 2.0.",
+                "thought": "Đã so sánh hồ sơ với yêu cầu chương trình."
             }
+
+        if last_tool == "curriculum_query":
+            return {
+                "type": "text",
+                "content": "Chương trình Cử nhân Trí tuệ Nhân tạo yêu cầu tối thiểu 128 tín chỉ và GPA tốt nghiệp từ 2.0 trở lên.",
+                "thought": "Đã có đủ Observation từ curriculum_query để trả lời."
+            }
+
+        if last_tool == "academic_query" and asks_registration and needs_student_check:
+            return {
+                "type": "text",
+                "content": "Môn Trí tuệ nhân tạo có 4 tín chỉ và yêu cầu môn tiên quyết CSI201. SV2026001 đã hoàn thành CSI201, vì vậy bạn đủ điều kiện đăng ký. Thông tin môn học chỉ có 3 tín chỉ và không cần môn trước là không chính xác.",
+                "thought": "Đã đối chiếu catalog và hồ sơ sinh viên."
+            }
+
+        if last_tool == "academic_query" and asks_graduation_check and "curriculum_query" in tool_history:
+            return {
+                "type": "text",
+                "content": "SV2026001 có 118 tín chỉ và GPA 3.85. Sinh viên chưa đủ điều kiện tốt nghiệp vì còn thiếu 10 tín chỉ, dù GPA đã đạt ngưỡng tối thiểu 2.0.",
+                "thought": "Đã so sánh hồ sơ với yêu cầu chương trình."
+            }
+
+        if last_tool == "academic_query" and asks_profile:
+            return {
+                "type": "text",
+                "content": "Hồ sơ học vụ của Nguyễn Văn An (SV2026001): GPA 3.85, tích lũy 118 tín chỉ, cố vấn PGS.TS Nguyễn Văn A.",
+                "thought": "Đã tổng hợp hồ sơ từ academic_query."
+            }
+
+        if last_tool == "schedule_appointment":
+            return {
+                "type": "text",
+                "content": "Đặt lịch thành công với mã BK-1001 cho SV2026001 vào lúc 14:00 ngày 15/09/2026.",
+                "thought": "Đã xác nhận kết quả đặt lịch."
+            }
+
+        if last_tool == "course_catalog_query" and asks_registration and needs_student_check:
+            return {
+                "type": "text",
+                "content": "Môn Trí tuệ nhân tạo có 4 tín chỉ và yêu cầu môn tiên quyết CSI201. SV2026001 đã hoàn thành CSI201, vì vậy bạn đủ điều kiện đăng ký. Thông tin môn học chỉ có 3 tín chỉ và không cần môn trước là không chính xác.",
+                "thought": "Đã đối chiếu catalog và hồ sơ sinh viên."
+            }
+
+        if last_tool == "course_catalog_query" and asks_registration:
+            return {
+                "type": "text",
+                "content": "Môn Các kĩ thuật học sâu và ứng dụng yêu cầu môn tiên quyết AIC301 (Máy học). Bạn đã học xong Máy học, vì vậy bạn đủ điều kiện đăng ký.",
+                "thought": "Đã đối chiếu môn tiên quyết với các môn đã hoàn thành."
+            }
+
+        if "quy chế tốt nghiệp" in prompt_lower or "tốt nghiệp cần bao nhiêu tín chỉ" in prompt_lower:
+            return {
+                "type": "text",
+                "content": "Quy chế tốt nghiệp yêu cầu tối thiểu 128 tín chỉ và GPA từ 2.0 trở lên.",
+                "thought": "Trả lời trực tiếp cho câu hỏi quy chế chung."
+            }
+
+        return {
+            "type": "text",
+            "content": "[Mock Agent Response]: Xin chào! Tôi là trợ lý học vụ. Tôi có thể giúp bạn tra cứu thông tin sinh viên, môn học, và đặt lịch tư vấn.",
+            "thought": "Trả lời trực tiếp cho câu hỏi chung."
+        }
 class GeminiProvider(BaseLLMProvider):
     """Google Gemini Provider (Native Tool Calling với Google GenAI SDK)"""
     def __init__(self, api_key: str = None, model: str = None):
@@ -131,6 +292,7 @@ class GeminiProvider(BaseLLMProvider):
 
             # Multi-turn: build contents list from chat_history
             contents = []
+            has_user_message = False
             if chat_history:
                 for msg in chat_history:
                     role = msg.get("role", "user")
@@ -154,11 +316,12 @@ class GeminiProvider(BaseLLMProvider):
                                    ))]
                         ))
                     elif role == "user":
+                        has_user_message = True
                         contents.append(types.Content(role="user", parts=[types.Part(text=content)]))
                     else:
                         contents.append(types.Content(role="model", parts=[types.Part(text=content)]))
 
-            if not chat_history or chat_history[-1].get("role") != "tool":
+            if not has_user_message and (not chat_history or chat_history[-1].get("role") != "tool"):
                 contents.append(types.Content(role="user", parts=[types.Part(text=prompt)]))
 
             response = client.models.generate_content(
@@ -237,12 +400,14 @@ class OpenAIProvider(BaseLLMProvider):
                 messages.append({"role": "system", "content": system_prompt})
 
             last_role = None
+            has_user_message = False
 
             if chat_history:
                 for msg in chat_history:
                     role = msg.get("role")
                     last_role = role
                     if role == "user":
+                        has_user_message = True
                         messages.append({"role": "user", "content": msg.get("content", "")})
                     elif role == "assistant":
                         assistant_msg = {"role": "assistant"}
@@ -265,14 +430,15 @@ class OpenAIProvider(BaseLLMProvider):
                             "content": msg.get("content", "")
                         })
 
-            if last_role != "tool":
+            if not has_user_message and last_role != "tool":
                 messages.append({"role": "user", "content": prompt})
 
             response = client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
                 tools=tools if tools else None,
-                tool_choice="auto" if tools else None
+                tool_choice="auto" if tools else None,
+                temperature=0.0
             )
 
             msg = response.choices[0].message

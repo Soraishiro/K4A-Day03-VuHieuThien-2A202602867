@@ -22,7 +22,7 @@
 
 > ⚠️ **YÊU CẦU NGHIỆM THU:** Mở tệp `.env` điền `GEMINI_API_KEY` (hoặc `OPENAI_API_KEY`) để kết nối LLM thật trước khi thực thi `python src/app.py --all`. Bài nộp chỉ dùng Mock Offline Provider sẽ không đạt điểm nghiệm thực tế.
 
-### Đoạn trích: TC07 — Multi-step reasoning với contradiction (2 tool calls → Final Answer)
+### Đoạn trích: TC07 — Multi-step reasoning
 
 TC07 là test case tiêu biểu nhất: User cung cấp thông tin sai (3 tín chỉ, không có môn tiên quyết) và Agent phải thực hiện chuỗi ReAct đa bước để đính chính.
 
@@ -31,25 +31,8 @@ TC07 là test case tiêu biểu nhất: User cung cấp thông tin sai (3 tín c
   {
     "step": 1,
     "action_type": "TOOL_EXECUTION",
-    "tool_name": "academic_query",
-    "arguments": {"student_id": "SV2026001"},
-    "observation": {
-      "status": "SUCCESS",
-      "student_id": "SV2026001",
-      "data": {
-        "full_name": "Nguyễn Văn An",
-        "gpa": 3.85,
-        "credits_earned": 118,
-        "completed_courses": ["CSI101", "CSI201", "MTH201", "AIC201", "AIC301"]
-      }
-    },
-    "latency_ms": 3638.2
-  },
-  {
-    "step": 2,
-    "action_type": "TOOL_EXECUTION",
     "tool_name": "course_catalog_query",
-    "arguments": {"course_name": "Trí tuệ nhân tạo"},
+    "arguments": { "course_name": "Trí tuệ nhân tạo" },
     "observation": {
       "status": "SUCCESS",
       "course_code": "AIC201",
@@ -60,39 +43,61 @@ TC07 là test case tiêu biểu nhất: User cung cấp thông tin sai (3 tín c
         "is_open": true
       }
     },
-    "latency_ms": 1008.8
+    "latency_ms": 1812.99
+  },
+  {
+    "step": 2,
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "academic_query",
+    "arguments": { "student_id": "SV2026001" },
+    "observation": {
+      "status": "SUCCESS",
+      "student_id": "SV2026001",
+      "data": {
+        "full_name": "Nguyễn Văn An",
+        "gpa": 3.85,
+        "credits_earned": 118,
+        "completed_courses": ["CSI101", "CSI201", "MTH201", "AIC201", "AIC301"]
+      }
+    },
+    "latency_ms": 1116.11
   },
   {
     "step": 3,
     "action_type": "FINAL_ANSWER",
     "thought": "OpenAI phản hồi trực tiếp bằng văn bản (không cần gọi công cụ).",
-    "output": "Bạn đã hoàn thành môn tiên quyết 'CSI201', vì vậy bạn đủ điều kiện để đăng ký môn 'Trí tuệ nhân tạo' (4 tín chỉ). Lưu ý: thông tin bạn nghe nói về 3 tín chỉ và không có môn tiên quyết là không chính xác.",
-    "latency_ms": 3378.89
+    "output": "Môn \"Trí tuệ nhân tạo\" có 4 tín chỉ và yêu cầu môn tiên quyết là \"CSI201\". Bạn đã hoàn thành môn \"CSI201\", vì vậy bạn đủ điều kiện để đăng ký học môn này vào học kỳ tới.",
+    "latency_ms": 1580.11
   }
 ]
 ```
 
-### Tóm tắt toàn bộ trace (14 sự kiện / 7 test cases):
+### Tóm tắt toàn bộ trace (28 sự kiện / 9 test cases)
 
-| Test Case | Loại | Tool Calls | Bước cuối | Trạng thái |
-|-----------|------|-----------|-----------|------------|
-| TC01 | direct_query | 0 (text only) | Final Answer | ✅ Pass |
-| TC02 | single_tool_query | 1 (academic_query) | Observation → Final Answer | ✅ Pass |
-| TC03 | appointment_booking | 1 (schedule_appointment) | Observation → Final Answer | ✅ Pass |
-| TC04 | multi_step_reasoning | 1 (academic_query) | Final Answer với graduation check | ✅ Pass |
-| TC05 | edge_case_handling | 1 (academic_query → NOT_FOUND) | Final Answer không gọi tool tiếp | ✅ Pass |
-| TC06 | multi_step_reasoning | 1 (course_catalog_query) | Final Answer | ✅ Pass |
-| TC07 | contradiction + noise | 2 (academic_query → course_catalog_query) | Final Answer đính chính | ✅ Pass |
+| Test Case | Loại                  | Tool Calls                                | Bước cuối                         | Trạng thái |
+| --------- | --------------------- | ----------------------------------------- | --------------------------------- | ---------- |
+| TC01      | direct_query          | 1 (curriculum_query)                      | Observation → Final Answer        | ✅ Pass    |
+| TC02      | single_tool_query     | 1 (academic_query)                        | Observation → Final Answer        | ✅ Pass    |
+| TC03      | appointment_booking   | 1 (schedule_appointment)                  | Observation → Final Answer        | ✅ Pass    |
+| TC04      | multi_step_reasoning  | 2 (academic_query → curriculum_query)     | Final Answer với graduation check | ✅ Pass    |
+| TC05      | edge_case_handling    | 0 (Guardrail blocked)                     | Final Answer không gọi tool       | ✅ Pass    |
+| TC06      | multi_step_reasoning  | 2 (course_catalog_query → academic_query) | Final Answer với eligibility      | ✅ Pass    |
+| TC07      | contradiction + noise | 2 (course_catalog_query → academic_query) | Final Answer đính chính           | ✅ Pass    |
+| TC08      | security_guardrail    | 0 (Guardrail blocked)                     | Final Answer từ chối              | ✅ Pass    |
+| TC09      | security_guardrail    | 0 (Guardrail blocked)                     | Final Answer từ chối              | ✅ Pass    |
 
 ---
 
 ## 3. TỔNG KẾT KẾT QUẢ NGHIỆM THU & NỘP BÀI
 
 - [x] Đã điền API Key thật (`OPENAI_API_KEY`) trong `.env` và xác nhận Agent chạy mượt mà trên LLM API thật (OpenAI gpt-4o-mini).
-- **Tổng số Test Cases đã chạy thành công:** 7 / 7 test cases.
-- **Số lượt gọi Tool qua MCP Server chính xác:** 6 lượt (academic_query: 3, course_catalog_query: 2, schedule_appointment: 1).
-- **Kết quả đẩy Repo nộp bài:** [ ] Đã Commit và Push mã nguồn thành công lên GitHub cá nhân.
+- **Tổng số Test Cases đã chạy thành công:** 9 / 9 test cases.
+- **Trace live:** 28 sự kiện, gồm đầy đủ `TOOL_EXECUTION`, `FINAL_ANSWER` và `TEST_RESULT`.
+- **Các luồng multi-step đã xác minh:** TC04 gọi đủ hồ sơ + chương trình; TC06 kết luận eligibility; TC07 gọi đủ catalog + hồ sơ và đính chính dữ liệu sai.
+- **Interactive CLI:** Đã chạy truy vấn học vụ và thoát bằng `exit` thành công.
+- **Bảo mật:** API key chỉ nằm trong `.env`, file này được loại khỏi Git bằng `.gitignore`.
+- **Trạng thái nộp bài:** Chưa tự động commit/push; cần review diff và push repository theo quy trình của học viên.
 
 ---
 
-> ✅ **HOÀN TẤT NỘP BÀI:** Sao chép đường link GitHub Repository cá nhân của bạn và dán vào ô nộp bài trên hệ thống LMS VLearn để hoàn tất Bài Lab 3!
+> ✅ **HOÀN TẤT NGHIỆM THU:** Có thể dùng trace và báo cáo này làm bằng chứng sau khi review diff và push repository.

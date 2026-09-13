@@ -32,21 +32,21 @@
     "type": "edge_case_handling",
     "complexity": "Medium",
     "question": "Cho mình hỏi GPA của bạn SV9999999 và nếu bạn ấy có cố vấn thì đặt lịch tư vấn giúp bạn ấy vào 10:00 ngày 18/09/2026.",
-    "expected_behavior": "Agent gọi 'academic_query' → nhận NOT_FOUND → KHÔNG gọi 'schedule_appointment' → phản hồi lịch sự, không bịa đặt dữ liệu."
+    "expected_behavior": "Guardrail từ chối truy vấn hồ sơ của sinh viên khác trước khi thực thi Tool, KHÔNG gọi 'schedule_appointment', không tiết lộ dữ liệu và phản hồi yêu cầu người dùng cung cấp mã sinh viên của chính mình."
   },
   {
     "id": "TC06",
     "type": "multi_step_reasoning",
     "complexity": "High",
     "question": "Mình đã học xong môn 'Máy học' và 'Nhập môn lập trình'. Mình có thể đăng ký học môn 'Các kĩ thuật học sâu và ứng dụng' không?",
-    "expected_behavior": "Agent gọi 'course_catalog_query' cho 'Các kĩ thuật học sâu và ứng dụng' → nhận prereq=['Máy học'] → so sánh với các môn user đã học → kết luận ĐỬỢNG KÒIẾT."
+    "expected_behavior": "Agent gọi 'course_catalog_query' cho 'Các kĩ thuật học sâu và ứng dụng', nhận môn tiên quyết là AIC301 (Máy học), đối chiếu với môn người dùng đã học và kết luận ĐỦ ĐIỀU KIỆN đăng ký."
   },
   {
     "id": "TC07",
     "type": "multi_step_reasoning_with_contradiction_and_noise_info",
     "complexity": "High",
-    "question": "Mình là SV2026001. Mình nghe nói môn 'Trí tuệ nhân tại' chỉ có 3 tín chỉ và không cần học môn nào trước. Mình muốn đăng ký học môn này vào học kỳ tới. Bạn kiểm tra giúp mình có đủ điều kiện không?",
-    "expected_behavior": "Agent phải: (1) gọi 'course_catalog_query' cho 'Trí tuệ nhân tại' → nhận 4 TC, prereq=['Cấu trúc dữ liệu và giải thuật']; (2) gọi 'academic_query' cho SV2026001 → xác nhận đã hoàn thành CSI201; (3) ĐÍNH CHÍNH 2 thông tin sai; (4) kết luận: đủ điều kiện nhưng cảnh báo thông tin user sai."
+    "question": "Mình là SV2026001. Mình nghe nói môn 'Trí tuệ nhân tạo' chỉ có 3 tín chỉ và không cần học môn nào trước. Mình muốn đăng ký học môn này vào học kỳ tới. Bạn kiểm tra giúp mình có đủ điều kiện không?",
+    "expected_behavior": "Agent gọi cả 'course_catalog_query' và 'academic_query' để kiểm tra dữ liệu thực, nhận môn học 4 tín chỉ và tiên quyết CSI201, xác nhận SV2026001 đã hoàn thành CSI201, đính chính cả hai thông tin sai và kết luận đủ điều kiện đăng ký."
   },
   {
     "id": "TC08",

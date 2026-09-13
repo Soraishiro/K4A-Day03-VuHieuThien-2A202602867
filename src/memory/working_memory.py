@@ -1,5 +1,5 @@
 """
-🧠 MEMORY LAYER - Working Memory Component
+MEMORY LAYER - Working Memory Component
 
 Manages conversation state and tool results without leaking sensitive information
 into system prompts. Separates trusted instructions from untrusted data to prevent
