@@ -36,7 +36,11 @@ class MockOfflineProvider(BaseLLMProvider):
 
     def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "", chat_history: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         prompt_lower = prompt.lower()
-        combined = prompt_lower + " " + " ".join(h.get("content", "") for h in (chat_history or []))
+        combined = prompt_lower + " " + " ".join(
+            h.get("thought", "") + " " + h.get("content", "") + " " +
+            (h.get("arguments", {}).get("student_id", "") if isinstance(h.get("arguments"), dict) else "")
+            for h in (chat_history or [])
+        )
         
         if "sv2026001" in combined and "đặt lịch" in combined:
             return {
@@ -44,6 +48,19 @@ class MockOfflineProvider(BaseLLMProvider):
                 "tool_name": "schedule_appointment",
                 "arguments": {"student_id": "SV2026001", "datetime_str": "14:00 15/09/2026", "advisor_name": "PGS.TS Nguyễn Văn A"},
                 "thought": "Người dùng yêu cầu đặt lịch hẹn tư vấn cho sinh viên SV2026001. Tôi sẽ gọi tool schedule_appointment."
+            }
+        elif "điều kiện tốt nghiệp" in combined or "tốt nghiệp" in combined or "graduation" in combined:
+            if "curriculum" not in combined and len(chat_history or []) > 0:
+                return {
+                    "type": "tool_call",
+                    "tool_name": "curriculum_query",
+                    "arguments": {"program_code": "AI"},
+                    "thought": "Cần tra cứu điều kiện tốt nghiệp từ công cụ curriculum_query."
+                }
+            return {
+                "type": "text",
+                "content": "[Mock]: Vui lòng cung cấp mã sinh viên để kiểm tra điều kiện tốt nghiệp.",
+                "thought": "Cần thông tin sinh viên để đánh giá tốt nghiệp."
             }
         elif "sv2026001" in combined or "tra cứu" in combined:
             return {
@@ -62,11 +79,9 @@ class MockOfflineProvider(BaseLLMProvider):
         else:
             return {
                 "type": "text",
-                "content": "[Mock Agent Response]: Xin chào! Quy chế học vụ VinUni yêu cầu sinh viên tích lũy tối thiểu 128 tín chỉ và duy trì GPA trên 2.0 để tốt nghiệp.",
-                "thought": "Câu hỏi chung về quy chế học vụ, trả lời trực tiếp không cần gọi Tool."
+                "content": "[Mock Agent Response]: Xin chào! Tôi là trợ lý học vụ. Tôi có thể giúp bạn tra cứu thông tin sinh viên, môn học, và đặt lịch tư vấn.",
+                "thought": "Trả lời trực tiếp cho câu hỏi chung."
             }
-
-
 class GeminiProvider(BaseLLMProvider):
     """Google Gemini Provider (Native Tool Calling với Google GenAI SDK)"""
     def __init__(self, api_key: str = None, model: str = None):
@@ -129,23 +144,22 @@ class GeminiProvider(BaseLLMProvider):
                                        args=msg.get("arguments", {})
                                    ))]
                         ))
+                    elif role == "tool":
+                        contents.append(types.Content(
+                            role="user",
+                            parts=[types.Part(text=msg.get("content", "")),
+                                   types.Part(function_response=types.FunctionResponse(
+                                       name=msg.get("tool_name", ""),
+                                       response={"result": json.loads(msg.get("content", "{}"))}
+                                   ))]
+                        ))
                     elif role == "user":
-                        if msg.get("tool_result"):
-                            contents.append(types.Content(
-                                role="user",
-                                parts=[types.Part(text=msg.get("content", "")),
-                                       types.Part(function_response=types.FunctionResponse(
-                                           name=msg.get("tool_name", ""),
-                                           response={"result": msg.get("observation", {})}
-                                       ))]
-                            ))
-                        else:
-                            contents.append(types.Content(role="user", parts=[types.Part(text=content)]))
+                        contents.append(types.Content(role="user", parts=[types.Part(text=content)]))
                     else:
                         contents.append(types.Content(role="model", parts=[types.Part(text=content)]))
-            
-            # Add current user prompt as the last message
-            contents.append(types.Content(role="user", parts=[types.Part(text=prompt)]))
+
+            if not chat_history or chat_history[-1].get("role") != "tool":
+                contents.append(types.Content(role="user", parts=[types.Part(text=prompt)]))
 
             response = client.models.generate_content(
                 model=self.model_name,
@@ -222,13 +236,18 @@ class OpenAIProvider(BaseLLMProvider):
             if system_prompt:
                 messages.append({"role": "system", "content": system_prompt})
 
+            last_role = None
+
             if chat_history:
                 for msg in chat_history:
                     role = msg.get("role")
+                    last_role = role
                     if role == "user":
                         messages.append({"role": "user", "content": msg.get("content", "")})
                     elif role == "assistant":
-                        assistant_msg = {"role": "assistant", "content": msg.get("thought", "")}
+                        assistant_msg = {"role": "assistant"}
+                        if msg.get("thought"):
+                            assistant_msg["content"] = msg["thought"]
                         if msg.get("tool_name"):
                             assistant_msg["tool_calls"] = [{
                                 "id": msg.get("tool_call_id", f"call_{msg.get('tool_name')}_{id(msg)}"),
@@ -246,7 +265,8 @@ class OpenAIProvider(BaseLLMProvider):
                             "content": msg.get("content", "")
                         })
 
-            messages.append({"role": "user", "content": prompt})
+            if last_role != "tool":
+                messages.append({"role": "user", "content": prompt})
 
             response = client.chat.completions.create(
                 model=self.model_name,

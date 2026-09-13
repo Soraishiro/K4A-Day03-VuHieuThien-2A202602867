@@ -73,6 +73,7 @@ def run_react_agent(user_query: str, provider, mcp_server: MCPAcademicServer) ->
     trace_logs = []
     tools_list = mcp_server.list_tools()
     chat_history = []
+    prev_tool_calls = []
     
     while step < MAX_ITERATIONS:
         step += 1
@@ -106,7 +107,34 @@ def run_react_agent(user_query: str, provider, mcp_server: MCPAcademicServer) ->
             arguments = llm_response.get("arguments", {})
             tool_call_id = llm_response.get("tool_call_id", f"call_{tool_name}_{step}")
             
-            print(f"🛠️ [Action Proposed]: {tool_name}({arguments})")
+            # Guardrail: prevent repeated identical tool calls
+            current_call_key = f"{tool_name}:{json.dumps(arguments, sort_keys=True, ensure_ascii=False)}"
+            if current_call_key in prev_tool_calls:
+                print(f"⚠️ [GUARDRAIL]: Trùng lặp tool call - chặn gọi lại {tool_name}!")
+                obs_str = json.dumps({"status": "DUPLICATE_REJECTED", "message": "Tool call bị trùng lặp, đã được chặn"}, ensure_ascii=False)
+                chat_history.append({
+                    "role": "assistant",
+                    "tool_name": tool_name,
+                    "arguments": arguments,
+                    "thought": thought + " [DUPLICATE_REJECTED]",
+                    "tool_call_id": tool_call_id
+                })
+                chat_history.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call_id,
+                    "content": obs_str
+                })
+                trace_logs.append({
+                    "step": step,
+                    "query": user_query,
+                    "action_type": "GUARDRAIL_DUPLICATE",
+                    "tool_name": tool_name,
+                    "arguments": arguments,
+                    "observation": {"status": "DUPLICATE_REJECTED", "message": "Tool call blocked by guardrail"},
+                    "latency_ms": latency_ms
+                })
+                continue
+            prev_tool_calls.append(current_call_key)
             
             # Thực thi Tool qua MCP Server
             mcp_result = mcp_server.call_tool(tool_name, arguments)

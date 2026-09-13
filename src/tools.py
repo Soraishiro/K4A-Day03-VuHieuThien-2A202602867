@@ -51,6 +51,19 @@ TOOLS_SCHEMA = [
             },
             "required": ["student_id", "advisor_name", "datetime_str"]
         }
+    },
+
+    # Tool 4: curriculum_query - Tra cứngy chương trình đào tạo và điều kiện tốt nghiệp
+    {
+        "name": "curriculum_query",
+        "description": "Tra cứu thông tin chương trình đào tạo và điều kiện tốt nghiệp của một chương trình (VD: 'AI').",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "program_code": {"type": "string", "description": "Mã chương trình (VD: 'AI')"}
+            },
+            "required": ["program_code"]
+        }
     }
 ]
 
@@ -168,6 +181,22 @@ MOCK_CURRICULUM = {
 }
 
 
+def execute_curriculum_query(program_code: str) -> str:
+    """Thực thi tra cứu thông tin chương trình đào tạo và điều kiện tốt nghiệp"""
+    program = MOCK_CURRICULUM.get(program_code.strip().upper())
+    if program:
+        return json.dumps({
+            "status": "SUCCESS",
+            "program_code": program_code,
+            "data": program
+        }, ensure_ascii=False)
+    else:
+        return json.dumps({
+            "status": "NOT_FOUND",
+            "message": f"Không tìm thấy chương trình '{program_code}' trong curriculum"
+        }, ensure_ascii=False)
+
+
 def execute_academic_query(student_id: str) -> str:
     """Thực thi tra cứu học vụ theo mã sinh viên"""
     student = MOCK_STUDENTS.get(student_id.strip().upper())
@@ -232,6 +261,21 @@ def execute_schedule_appointment(student_id: str, datetime_str: str, advisor_nam
             "message": "Định dạng datetime_str không hợp lệ. VD: '14:00 15/09/2026'"
         }, ensure_ascii=False)
     
+    existing_booking = next(
+        (b for b in MOCK_APPOINTMENTS["bookings"]
+         if b["student_id"] == student_id.strip().upper()
+         and b["advisor"] == advisor_name
+         and b["date"] == date_key
+         and b["time"] == time_part),
+        None
+    )
+    if existing_booking:
+        return json.dumps({
+            "status": "DUPLICATE_BOOKING",
+            "booking_id": existing_booking["booking_id"],
+            "message": f"Lịch hẹn đã được đặt trước đó với mã {existing_booking['booking_id']} cho sinh viên {student['full_name']} với {advisor_name} vào lúc {datetime_str}."
+        }, ensure_ascii=False)
+    
     date_availability = next((d for d in advisor["availability"] if d["date"] == date_key), None)
     if not date_availability:
         return json.dumps({
@@ -280,7 +324,8 @@ def execute_schedule_appointment(student_id: str, datetime_str: str, advisor_nam
 TOOL_ROUTER = {
     "academic_query": execute_academic_query,
     "course_catalog_query": execute_course_catalog_query,
-    "schedule_appointment": execute_schedule_appointment
+    "schedule_appointment": execute_schedule_appointment,
+    "curriculum_query": execute_curriculum_query
 }
 
 

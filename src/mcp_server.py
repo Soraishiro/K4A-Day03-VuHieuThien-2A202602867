@@ -6,7 +6,7 @@ Mô phỏng kiến trúc MCP Server (Client-Server Architecture) cung cấp côn
 import json
 import sys
 from typing import Dict, Any, List
-from tools import TOOLS_SCHEMA, dispatch_tool_call
+from tools import TOOLS_SCHEMA, dispatch_tool_call, MOCK_APPOINTMENTS
 
 if sys.stdout.encoding != 'utf-8':
     try:
@@ -21,6 +21,12 @@ class MCPAcademicServer:
     def __init__(self, server_name: str = "vinuni-academic-mcp-server"):
         self.server_name = server_name
         self.version = "2026.1.0"
+        self._reset_state()
+        
+    def _reset_state(self) -> None:
+        """Reset mock data state for a fresh test run session."""
+        MOCK_APPOINTMENTS["booking_id_counter"] = 1000
+        MOCK_APPOINTMENTS["bookings"] = []
         
     def list_tools(self) -> List[Dict[str, Any]]:
         """Trả về danh sách các Tools chuẩn giao thức MCP"""
